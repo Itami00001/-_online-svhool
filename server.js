@@ -1,44 +1,29 @@
 require('dotenv').config();
 
 const express = require('express');
-const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 
+// Импорт моделей Sequelize
+const { sequelize, Student, Teacher, Course, Lesson, Enrollment } = require('./models');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Настройка подключения к PostgreSQL
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'online_school'
-});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Проверка подключения к БД
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Ошибка подключения к базе данных:', err.stack);
-  } else {
-    console.log('✓ Успешное подключение к PostgreSQL');
-    release();
-  }
-});
-
-// API Routes
+// API Routes с использованием Sequelize
 
 // Получить всех студентов
 app.get('/api/students', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM students ORDER BY id');
-    res.json(result.rows);
+    const students = await Student.findAll({
+      order: [['id', 'ASC']]
+    });
+    res.json(students);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при получении студентов' });
@@ -48,8 +33,10 @@ app.get('/api/students', async (req, res) => {
 // Получить всех преподавателей
 app.get('/api/teachers', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM teachers ORDER BY id');
-    res.json(result.rows);
+    const teachers = await Teacher.findAll({
+      order: [['id', 'ASC']]
+    });
+    res.json(teachers);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при получении преподавателей' });
@@ -59,13 +46,23 @@ app.get('/api/teachers', async (req, res) => {
 // Получить все курсы с информацией о преподавателях
 app.get('/api/courses', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT c.*, t.name as teacher_name, t.specialization
-      FROM courses c
-      LEFT JOIN teachers t ON c.teacher_id = t.id
-      ORDER BY c.id
-    `);
-    res.json(result.rows);
+    const courses = await Course.findAll({
+      include: [{
+        model: Teacher,
+        as: 'teacher',
+        attributes: ['name', 'specialization']
+      }],
+      order: [['id', 'ASC']]
+    });
+
+    // Преобразование для совместимости с фронтендом
+    const formattedCourses = courses.map(course => ({
+      ...course.toJSON(),
+      teacher_name: course.teacher ? course.teacher.name : null,
+      specialization: course.teacher ? course.teacher.specialization : null
+    }));
+
+    res.json(formattedCourses);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при получении курсов' });
@@ -76,11 +73,11 @@ app.get('/api/courses', async (req, res) => {
 app.get('/api/lessons/:courseId', async (req, res) => {
   try {
     const { courseId } = req.params;
-    const result = await pool.query(
-      'SELECT * FROM lessons WHERE course_id = $1 ORDER BY lesson_order',
-      [courseId]
-    );
-    res.json(result.rows);
+    const lessons = await Lesson.findAll({
+      where: { course_id: courseId },
+      order: [['lesson_order', 'ASC']]
+    });
+    res.json(lessons);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при получении уроков' });
@@ -90,22 +87,35 @@ app.get('/api/lessons/:courseId', async (req, res) => {
 // Получить все записи на курсы с подробной информацией
 app.get('/api/enrollments', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        e.id, 
-        e.enrollment_date, 
-        e.status, 
-        e.grade,
-        s.name as student_name, 
-        s.email as student_email,
-        c.name as course_name,
-        c.price
-      FROM enrollments e
-      JOIN students s ON e.student_id = s.id
-      JOIN courses c ON e.course_id = c.id
-      ORDER BY e.enrollment_date DESC
-    `);
-    res.json(result.rows);
+    const enrollments = await Enrollment.findAll({
+      include: [
+        {
+          model: Student,
+          as: 'student',
+          attributes: ['name', 'email']
+        },
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['name', 'price']
+        }
+      ],
+      order: [['enrollment_date', 'DESC']]
+    });
+
+    // Преобразование для совместимости с фронтендом
+    const formattedEnrollments = enrollments.map(enrollment => ({
+      id: enrollment.id,
+      enrollment_date: enrollment.enrollment_date,
+      status: enrollment.status,
+      grade: enrollment.grade,
+      student_name: enrollment.student.name,
+      student_email: enrollment.student.email,
+      course_name: enrollment.course.name,
+      price: enrollment.course.price
+    }));
+
+    res.json(formattedEnrollments);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при получении записей' });
@@ -116,11 +126,13 @@ app.get('/api/enrollments', async (req, res) => {
 app.post('/api/students', async (req, res) => {
   try {
     const { name, email, phone, birth_date } = req.body;
-    const result = await pool.query(
-      'INSERT INTO students (name, email, phone, birth_date) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, phone, birth_date]
-    );
-    res.status(201).json(result.rows[0]);
+    const student = await Student.create({
+      name,
+      email,
+      phone,
+      birth_date
+    });
+    res.status(201).json(student);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при добавлении студента' });
@@ -131,11 +143,11 @@ app.post('/api/students', async (req, res) => {
 app.post('/api/enrollments', async (req, res) => {
   try {
     const { student_id, course_id } = req.body;
-    const result = await pool.query(
-      'INSERT INTO enrollments (student_id, course_id) VALUES ($1, $2) RETURNING *',
-      [student_id, course_id]
-    );
-    res.status(201).json(result.rows[0]);
+    const enrollment = await Enrollment.create({
+      student_id,
+      course_id
+    });
+    res.status(201).json(enrollment);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при записи на курс' });
@@ -145,16 +157,16 @@ app.post('/api/enrollments', async (req, res) => {
 // Получить статистику
 app.get('/api/stats', async (req, res) => {
   try {
-    const studentsCount = await pool.query('SELECT COUNT(*) FROM students');
-    const teachersCount = await pool.query('SELECT COUNT(*) FROM teachers');
-    const coursesCount = await pool.query('SELECT COUNT(*) FROM courses');
-    const enrollmentsCount = await pool.query('SELECT COUNT(*) FROM enrollments');
+    const studentsCount = await Student.count();
+    const teachersCount = await Teacher.count();
+    const coursesCount = await Course.count();
+    const enrollmentsCount = await Enrollment.count();
 
     res.json({
-      students: parseInt(studentsCount.rows[0].count),
-      teachers: parseInt(teachersCount.rows[0].count),
-      courses: parseInt(coursesCount.rows[0].count),
-      enrollments: parseInt(enrollmentsCount.rows[0].count)
+      students: studentsCount,
+      teachers: teachersCount,
+      courses: coursesCount,
+      enrollments: enrollmentsCount
     });
   } catch (err) {
     console.error(err);
