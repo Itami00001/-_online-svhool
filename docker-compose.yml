@@ -4,10 +4,12 @@ services:
   db:
     image: postgres:15
     container_name: online_school_db
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1
-      POSTGRES_DB: online_school
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
@@ -23,12 +25,8 @@ services:
       - "3000:3000"
     depends_on:
       - db
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: 1
-      DB_NAME: online_school
+    env_file:
+      - .env
     volumes:
       - .:/app
       - /app/node_modules

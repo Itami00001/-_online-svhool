@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -11,7 +13,7 @@ const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '1',
+  password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'online_school'
 });
 
