@@ -37,7 +37,7 @@ cp .env.example .env
 
 2. Откройте файл `.env` и **обязательно измените** пароль базы данных:
 ```env
-DB_PASSWORD=your_secure_password_here  # Замените на свой надежный пароль!
+DB_PASSWORD=your_secure_password_here  # Замените на свой пароль
 ```
 
 ### Запуск проекта
