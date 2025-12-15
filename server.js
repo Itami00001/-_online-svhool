@@ -5,7 +5,7 @@ const cors = require('cors');
 const path = require('path');
 
 // Импорт моделей Sequelize
-const { sequelize, Student, Teacher, Course, Lesson, Enrollment } = require('./models');
+const { sequelize, Student, Teacher, Course, Lesson, Enrollment } = require('./app/models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
