@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { sequelize, Student, Teacher, Course, Lesson, Enrollment } = require('./models');
+const { sequelize, Student, Teacher, Course, Lesson, Enrollment } = require('./app/models');
 
 async function seedDatabase() {
     try {

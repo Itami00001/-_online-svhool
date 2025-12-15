@@ -1,0 +1,13 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "Online School DB (Auto)",
+            "Group": "Servers",
+            "Host": "db",
+            "Port": 5432,
+            "MaintenanceDB": "online_school",
+            "Username": "postgres",
+            "SSLMode": "prefer"
+        }
+    }
+}
