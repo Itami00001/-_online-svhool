@@ -4,7 +4,10 @@ const Sequelize = require("sequelize");
 const sequelize = new Sequelize(dbConfig.DB, dbConfig.USER, dbConfig.PASSWORD, {
     host: dbConfig.HOST,
     dialect: dbConfig.dialect,
-    operatorsAliases: false,
+    define: {
+        underscored: true,  // преобразование camelCase в snake_case
+        freezeTableName: true // сохраняет имена таблиц как в моделях
+    },
     pool: {
         max: dbConfig.pool.max,
         min: dbConfig.pool.min,

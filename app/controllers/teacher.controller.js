@@ -138,3 +138,27 @@ exports.deleteAll = (req, res) => {
             });
         });
 };
+
+exports.findAllPaged = async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const size = parseInt(req.query.size) || 10;
+    const offset = (page - 1) * size;
+
+    try {
+        const { count, rows } = await Teacher.findAndCountAll({
+            limit: size,
+            offset: offset,
+            order: [['id', 'ASC']]
+        });
+
+        res.json({
+            totalItems: count,
+            totalPages: Math.ceil(count / size),
+            currentPage: page,
+            items: rows,
+        });
+    } catch (error) {
+        console.error('Error fetching teachers:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};

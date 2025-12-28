@@ -197,3 +197,53 @@ exports.deleteAll = (req, res) => {
             });
         });
 };
+
+exports.findAllPaged = async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const size = parseInt(req.query.size) || 10;
+    const offset = (page - 1) * size;
+
+    try {
+        const { count, rows } = await Enrollment.findAndCountAll({
+            where: {}, // Add conditions here if needed
+            include: [
+                {
+                    model: Student,
+                    as: 'student',
+                    attributes: ['name', 'email']
+                },
+                {
+                    model: Course,
+                    as: 'course',
+                    attributes: ['name', 'price']
+                }
+            ],
+            limit: size,
+            offset: offset,
+            order: [['enrollment_date', 'DESC']]
+        });
+
+        const formattedEnrollments = rows.map(enrollment => ({
+            id: enrollment.id,
+            enrollment_date: enrollment.enrollment_date,
+            status: enrollment.status,
+            grade: enrollment.grade,
+            student_id: enrollment.student_id,
+            course_id: enrollment.course_id,
+            student_name: enrollment.student ? enrollment.student.name : 'Unknown',
+            student_email: enrollment.student ? enrollment.student.email : 'Unknown',
+            course_name: enrollment.course ? enrollment.course.name : 'Unknown',
+            price: enrollment.course ? enrollment.course.price : 0
+        }));
+
+        res.json({
+            totalItems: count,
+            totalPages: Math.ceil(count / size),
+            currentPage: page,
+            items: formattedEnrollments,
+        });
+    } catch (error) {
+        console.error('Error fetching enrollments:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
